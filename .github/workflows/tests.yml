@@ -1,0 +1,31 @@
+name: Local-first checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.14']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Python and local process integration
+        run: python -m unittest test_mailphor_validation test_ai_process_integration
+      - name: Recommendation and audit interaction
+        run: |
+          node test_personalization.cjs
+          node test_audit_page.cjs
+          node test_i18n.cjs

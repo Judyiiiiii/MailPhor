@@ -1,0 +1,66 @@
+<!doctype html><meta charset="utf-8"><title>Isolated MailPhor check</title>
+<p id="result">Running synthetic browser checks</p><iframe id="app" src="/index.html" style="width:1200px;height:900px"></iframe>
+<script>
+const result=document.querySelector('#result');
+const frame=document.querySelector('#app');
+function assert(condition,message){if(!condition)throw Error(message);}
+const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function until(check,message){for(let i=0;i<120;i++){if(check())return;await wait(50);}throw Error(message);}
+function card(document,title){return [...document.querySelectorAll('#cards article')].find(node=>node.querySelector('.title').textContent===title);}
+async function test(){
+  await until(()=>frame.contentDocument?.querySelectorAll('#cards article').length===2,'initial cards');
+  let doc=frame.contentDocument;
+  doc.querySelector('#prefill-profile').click();
+  doc.querySelector('input[name="interests"][value="sports_wellness"]').checked=true;
+  doc.querySelector('#profile-form').requestSubmit();
+  assert(doc.querySelector('#profile-summary').textContent.includes('Year 2'),'saved profile');
+  assert(doc.querySelector('#recommendation-summary').textContent.includes('画像已生效'),'profile active indicator');
+  assert([...doc.querySelectorAll('#cards .priority-badge')].every(badge=>badge.textContent && badge.dataset.level),'collapsed priority badges');
+  const form=doc.querySelector('#profile-form');
+  form.querySelectorAll('input[name="goals"]').forEach(box=>box.checked=box.value==='wellness');
+  doc.querySelector('#profile-form').requestSubmit();
+  assert(doc.querySelector('#cards .title').textContent==='Marathon','sports profile changes first card');
+  assert(card(doc,'Marathon').querySelector('.priority-badge').textContent==='优先关注','sports priority visible');
+  doc.querySelector('#prefill-profile').click();
+  doc.querySelector('input[name="interests"][value="technical"]').checked=true;
+  doc.querySelector('#profile-form').requestSubmit();
+  assert(doc.querySelector('#cards .title').textContent==='Python Hardware Project','technical profile changes first card');
+  let project=card(doc,'Python Hardware Project');
+  assert(project.querySelector('.recommendation').textContent.includes('GPA 未填写'),'unknown GPA warning');
+  project.querySelector('.personal-actions button').click();
+  project=card(doc,'Python Hardware Project');
+  const status=project.querySelector('.personal-actions select');status.value='applied';status.dispatchEvent(new frame.contentWindow.Event('change'));
+  project=card(doc,'Python Hardware Project');
+  const checkbox=project.querySelector('.checklist input');checkbox.checked=true;checkbox.dispatchEvent(new frame.contentWindow.Event('change'));
+  const reloaded=new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));frame.contentWindow.location.reload();await reloaded;
+  await until(()=>frame.contentDocument?.querySelectorAll('#cards article').length===2,'reloaded cards');
+  doc=frame.contentDocument;project=card(doc,'Python Hardware Project');
+  assert(doc.querySelector('#profile-summary').textContent.includes('Year 2'),'profile survives reload');
+  assert(project.querySelector('.checklist input').checked,'checklist survives reload');
+  assert(project.querySelector('.personal-actions button').textContent==='取消收藏','favorite survives reload');
+  assert(project.querySelector('.personal-actions select').value==='applied','application state survives reload');
+  const view=doc.querySelector('#view-mode');view.value='applied';view.dispatchEvent(new frame.contentWindow.Event('change'));
+  assert(doc.querySelectorAll('#cards article').length===1,'applied view');
+  view.value='recommended';view.dispatchEvent(new frame.contentWindow.Event('change'));
+  project=card(doc,'Python Hardware Project');project.querySelectorAll('.personal-actions button')[1].click();
+  assert(!card(doc,'Python Hardware Project'),'ignored hidden in recommended');
+  view.value='all';view.dispatchEvent(new frame.contentWindow.Event('change'));
+  assert(card(doc,'Python Hardware Project'),'ignored remains in all');
+  assert(doc.documentElement.scrollWidth<=frame.contentWindow.innerWidth+1,'desktop has no horizontal overflow');
+  doc.querySelector('[data-sync="once"]').click();
+  await until(()=>doc.querySelector('#mail-sync-summary').textContent.includes('本轮完成'),'sync control updates actual status panel');
+  const queued=await frame.contentWindow.fetch('/api/reanalyse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message_id:'synthetic-audit'})});
+  assert(queued.ok,'saved-body reanalysis queue');
+  const personalBefore=frame.contentWindow.localStorage.getItem('mailphor.personal.v1');
+  frame.contentWindow.MailPhorI18n.setLanguage('en');
+  await until(()=>doc.querySelector('.priority-badge').textContent==='Prioritise','English priority label');
+  assert(doc.documentElement.lang==='en','English document language');
+  assert(doc.querySelector('#language-switch').value==='en','language selector');
+  assert(card(doc,'Python Hardware Project').querySelector('.todo-text').textContent==='提交 CV','source checklist is not rewritten');
+  assert(frame.contentWindow.localStorage.getItem('mailphor.personal.v1')===personalBefore,'language does not change personal state');
+  frame.contentWindow.MailPhorI18n.setLanguage('zh');
+  await until(()=>doc.querySelector('.priority-badge').textContent==='优先关注','Chinese restored');
+  result.textContent='PASS: profile, recommendations, favorites, application, checklist, reload, ignore/all, language switching';result.dataset.result='passed';
+}
+test().catch(error=>{result.textContent='FAIL: '+error.message;result.dataset.result='failed';});
+</script>

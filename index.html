@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MailPhor</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="min-h-screen text-white antialiased">
+  <a class="skip-link" href="#cards">跳到机会列表</a>
+  <aside class="sidebar">
+    <a class="brand" href="/index.html"><span class="brand-mark">m<span>↗</span></span>MailPhor<span class="brand-dot">.</span></a>
+    <p class="sidebar-caption">YOUR OPPORTUNITY SPACE</p>
+    <nav aria-label="机会导航">
+      <button data-view="recommended" class="nav-item active"><span>✦</span> 为你推荐 <small>For you</small></button>
+      <button data-view="all" class="nav-item"><span>▦</span> 全部机会 <small>Explore</small></button>
+      <button data-view="favorites" class="nav-item"><span>☆</span> 我的收藏 <small>Saved</small></button>
+      <button data-view="applied" class="nav-item"><span>↗</span> 已申请 / 报名</button>
+      <button data-view="ignored" class="nav-item"><span>−</span> 已忽略</button>
+    </nav>
+    <div class="sidebar-bottom"><button id="edit-profile" class="nav-item"><span>⚙</span> 背景与偏好</button><a id="audit-link" class="nav-item" href="/mail-audit.html"><span>≡</span> 邮件处理记录</a><a class="nav-item" href="/index.html?demo=1"><span>◈</span> 体验 Demo</a><p>个人机会工作台</p><small>保存在本机 · Local-first</small></div>
+  </aside>
+  <main class="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+    <div class="surface-toolbar"><span>MailPhor <span class="toolbar-separator">/</span> <span>个人机会工作台</span></span><label class="locale-control"><span data-icon="globe"></span><select id="language-switch" aria-label="Language / 语言"><option value="zh">中文</option><option value="en">English</option></select></label></div>
+    <div id="demo-banner" class="demo-banner hidden">DEMO · 这里展示虚构机会，画像和操作独立保存，不混入你的真实数据。<a href="/index.html">返回个人工作台 →</a></div>
+    <header class="workspace-header mb-6 flex items-end justify-between gap-4">
+      <div><p class="eyebrow">MAILPHOR · YOUR OPPORTUNITIES</p><h1 id="page-title">发现值得投入的机会<span>↗</span></h1><p class="header-subtitle">根据你的背景整理、比较与跟进，不错过重要的下一步。</p></div>
+      <section class="read-time px-4 py-3 text-right">
+        <p class="text-xs text-zinc-500">页面数据读取时间（非邮箱同步）</p>
+        <p id="last-sync" class="text-sm font-medium text-zinc-200">Loading...</p>
+      </section>
+    </header>
+    <details class="sync-panel"><summary>邮箱连接与最近同步 <span>Sync status</span></summary><p id="mail-sync-summary" role="status" class="text-sm text-zinc-300">邮箱同步状态尚未读取。</p><p id="runtime-status" role="status"></p><div class="sync-controls"><button data-sync="once">同步一轮</button><button data-sync="watch">开启定时检查</button><button data-sync="stop">停止定时检查</button></div><p>同步会读取已配置邮箱，并将选定邮件正文发送到配置的 AI 服务。默认每轮 5 封；重新分析队列优先。停止定时检查不会立即中断当前批次。电脑和程序需保持运行。</p><p id="sync-action-message" role="status"></p></details>
+
+    <details id="profile-panel" class="glass mb-5 rounded-3xl p-5">
+      <summary class="cursor-pointer text-lg">My Profile / 我的背景与偏好（可跳过）</summary>
+      <p id="profile-summary" class="mt-3 text-sm text-zinc-300"></p>
+      <p class="my-3 text-sm text-zinc-400">仅保存在当前浏览器，不发送给 AI。可随时修改；更新后重新排序，不重读邮件。换浏览器或清理网站数据会丢失个人设置。</p>
+      <form id="profile-form" class="grid gap-4 sm:grid-cols-2">
+        <label>Major / 专业<input name="major" class="w-full rounded border border-white/20 bg-zinc-900 p-2" placeholder="Electronic and Electrical Engineering"></label>
+        <label>Year / 年级<select name="year" class="w-full rounded bg-zinc-900 p-2"><option value="">暂不填写</option><option value="1">Year 1</option><option value="2">Year 2</option><option value="3">Year 3</option><option value="4">Year 4</option><option value="5">Year 5+</option></select></label>
+        <label>Skills / 技能（逗号分隔）<input name="skills" class="w-full rounded border border-white/20 bg-zinc-900 p-2" placeholder="C++, Python"></label>
+        <label>GPA（选填，与原文同一计分尺度）<input name="gpa" type="number" min="0" max="10" step="0.01" class="w-full rounded border border-white/20 bg-zinc-900 p-2"></label>
+        <fieldset><legend>Goals / 当前目标（多选）</legend><div id="goal-options" class="grid gap-2"></div></fieldset>
+        <fieldset><legend>Interests / 兴趣方向（多选）</legend><div id="interest-options" class="grid gap-2"></div></fieldset>
+        <label>每周可投入时间<input name="availability" class="w-full rounded border border-white/20 bg-zinc-900 p-2" placeholder="例如 4 小时，或暂不确定"></label>
+        <label>地区、线上/线下偏好<input name="location" class="w-full rounded border border-white/20 bg-zinc-900 p-2" placeholder="例如 Hong Kong，线上也可"></label>
+        <label>费用接受度<input name="budget" class="w-full rounded border border-white/20 bg-zinc-900 p-2" placeholder="例如仅免费，或视情况"></label>
+        <label>推荐风格<select name="exploration" class="w-full rounded bg-zinc-900 p-2"><option value="focused">优先明确相关</option><option value="open">愿意探索新方向</option></select></label>
+        <div class="flex flex-wrap gap-3 sm:col-span-2"><button type="submit" class="rounded bg-white px-4 py-2 text-black">保存画像并更新推荐</button><button type="button" id="prefill-profile" class="rounded border px-4 py-2">填入我的已知背景（待保存）</button><button type="button" id="skip-profile" class="rounded border px-4 py-2">跳过 / 稍后设置</button></div>
+      </form>
+    </details>
+    <p id="personal-message" role="status" class="mb-3 text-sm text-amber-100"></p>
+    <p id="recommendation-summary" role="status" class="mb-4 text-sm text-zinc-300"></p>
+    <p id="content-language-note" class="content-language-note">已保存摘要保留原语言；切换界面不会自动调用AI翻译。</p>
+    <details id="filter-panel" open><summary>筛选与排序 <span>Filters</span></summary><section class="filter-toolbar mb-4 flex flex-wrap gap-3">
+      <label>查看 <select id="view-mode" class="rounded bg-zinc-900 p-2"><option value="recommended">推荐（隐藏已忽略）</option><option value="all">全部机会</option><option value="favorites">收藏</option><option value="ignored">已忽略</option><option value="applied">已申请 / 已报名</option></select></label>
+      <label>优先级 <select id="priority-filter" class="rounded bg-zinc-900 p-2"><option value="">全部</option><option value="high">优先关注</option><option value="consider">值得考虑</option><option value="low">低相关</option><option value="pending">待评估</option></select></label>
+      <label>活动类型 <select id="subcategory-filter" class="rounded bg-zinc-900 p-2"><option value="">全部子类</option><option value="career">Career / 职业发展</option><option value="technical">Technical / 技术实践</option><option value="academic">Academic / 学术</option><option value="industry">Industry / 行业</option><option value="student_organisation">Student Organisations / 学生组织</option><option value="sports_wellness">Sports & Wellness / 体育健康</option><option value="culture_interests">Culture / 文化兴趣</option><option value="other">其他</option></select></label>
+      <label>排序 <select id="sort-mode" class="rounded bg-zinc-900 p-2"><option value="priority">推荐优先</option><option value="deadline">截止日期（已标准化日期优先）</option><option value="latest">最新收录</option></select></label>
+    </section></details>
+
+    <section id="stats" class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6"></section>
+
+    <section id="filters" class="mb-4 flex gap-2 overflow-x-auto pb-1"></section>
+
+    <section class="search-toolbar mb-5 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+      <label class="glass flex items-center gap-3 rounded-2xl px-4 py-3">
+        <svg class="h-5 w-5 shrink-0 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="m21 21-4.3-4.3" />
+          <circle cx="11" cy="11" r="8" />
+        </svg>
+        <input id="search" aria-label="搜索机会" class="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-500" placeholder="搜索岗位、项目、机构或关键词…" />
+      </label>
+      <button id="refresh" class="glass rounded-2xl px-5 py-3 text-sm font-medium text-zinc-100 transition hover:bg-white/10">
+        刷新机会列表（不读取邮箱）
+      </button>
+    </section>
+
+    <section id="status" class="hidden glass mb-5 rounded-3xl px-5 py-4 text-sm text-zinc-300"></section>
+    <div class="list-heading"><h2>你的机会清单 <span>Opportunity board</span></h2><span id="visible-count"></span></div>
+    <section id="cards" class="grid grid-cols-1 items-start gap-4 lg:grid-cols-2"></section>
+  </main>
+
+  <template id="card-template">
+    <article class="glass overflow-hidden rounded-[1.65rem]">
+      <button class="card-head flex w-full items-start justify-between gap-4 p-5 text-left sm:p-6">
+        <div class="min-w-0">
+          <div class="mb-3 flex flex-wrap items-center gap-2">
+            <span class="priority-badge"></span>
+            <span class="category chip rounded-full px-2.5 py-1 text-xs font-medium"></span>
+            <span class="deadline chip rounded-full px-2.5 py-1 text-xs text-zinc-300"></span>
+          </div>
+          <h2 class="title text-xl font-semibold tracking-tight text-zinc-50"></h2>
+          <p class="organization mt-1 text-sm text-zinc-400"></p>
+          <p class="summary line-clamp-2 mt-3 text-sm leading-6 text-zinc-300"></p>
+          <p class="recommendation-teaser"></p>
+        </div>
+        <span class="chevron mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/8 text-zinc-300">
+          <svg class="h-5 w-5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </span>
+      </button>
+      <div class="accordion-content">
+        <div class="accordion-inner">
+          <div class="border-t border-white/10 px-5 pb-5 pt-4 sm:px-6 sm:pb-6">
+            <section class="recommendation mb-4 rounded-2xl border border-white/10 p-4"></section>
+            <div class="mb-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+              <p class="mb-1 text-xs uppercase tracking-[0.18em] text-zinc-500">Core Highlight / 核心重点</p>
+              <p class="highlight text-sm leading-6 text-zinc-200"></p>
+            </div>
+            <div class="details grid gap-3"></div>
+            <div class="research mt-4 rounded-2xl border border-white/10 bg-white/[0.045] p-4"></div>
+            <div class="checklist mt-4 rounded-2xl border border-white/10 bg-white/[0.045] p-4"></div>
+            <div class="mt-4 flex flex-col gap-3 sm:flex-row">
+              <button class="copy-btn flex-1 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200">
+                Copy Prompt for AI
+              </button>
+              <button class="copy-summary-btn flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10">
+                Copy Push Summary
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <footer class="card-footer"><section class="personal-actions flex flex-wrap gap-3"></section><a class="quick-apply hidden" target="_blank" rel="noopener noreferrer">原文申请 ↗</a></footer>
+    </article>
+  </template>
+
+  <script src="/icons.js"></script>
+  <script src="/i18n.js"></script>
+  <script src="/personalization.js"></script>
+  <script>
+    const categories = [
+      { key: "all", icon: "◎", label: "All / 全部", shortLabel: "All / 全部", color: "text-zinc-100" },
+      { key: "internship", icon: "💼", label: "Jobs & Internships / 岗位实习", shortLabel: "Jobs / 岗位", color: "text-sky-200" },
+      { key: "competition", icon: "🏆", label: "Projects & Competitions / 项目与比赛", shortLabel: "Projects / 项目比赛", color: "text-amber-200" },
+      { key: "scholarship", icon: "🎓", label: "Scholarships & Funding / 奖学金与资助", shortLabel: "Funding / 资助", color: "text-emerald-200" },
+      { key: "event", icon: "🎪", label: "Events & Communities / 活动与社群", shortLabel: "Events / 活动社群", color: "text-fuchsia-200" },
+      { key: "exchange", icon: "✈️", label: "Exchange / 交换交流", shortLabel: "Exchange / 交换", color: "text-indigo-200" },
+      { key: "networking", icon: "🤝", label: "Networking / 人脉交流", shortLabel: "Networking / 人脉", color: "text-sky-200" },
+    ];
+
+    const categoryByKey = Object.fromEntries(categories.map((item) => [item.key, item]));
+
+    let allItems = [];
+    let activeFilter = "all";
+    let dataLoadError = "";
+    const Personal = MailPhorPersonal;
+    const Icons = MailPhorIcons;
+    Icons.boot();
+    const compactLayout=matchMedia('(max-width:760px)');
+    document.querySelector('#filter-panel').open=!compactLayout.matches;
+    compactLayout.addEventListener('change',event=>document.querySelector('#filter-panel').open=!event.matches);
+    const isDemo=new URLSearchParams(location.search).get('demo')==='1';
+    const personalKey=Personal.KEY+(isDemo?'.demo':'');
+    document.querySelector('#demo-banner').classList.toggle('hidden',!isDemo);
+    if(isDemo){document.querySelector('#audit-link').href='/mail-audit.html?demo=1';document.title='MailPhor · Demo';}
+    let personalState;
+    let personalStorageReady = true;
+    try { personalState=Personal.read(localStorage,personalKey); }
+    catch(error) { personalStorageReady=false; personalState={version:1,profile:null,actions:{}}; document.querySelector('#personal-message').textContent='个人数据无法读取，未覆盖原数据：'+error.message; }
+    if(isDemo&&!personalState.profile)personalState.profile={major:'Electronic and Electrical Engineering',year:'2',gpa:'',skills:['C++','Python'],goals:['internship','project'],interests:['technical','networking'],exploration:'open'};
+    function commitPersonal(next) {
+      if(!personalStorageReady){document.querySelector('#personal-message').textContent='本地存储不可用，未保存；请检查浏览器存储设置。';return false;}
+      try{Personal.save(localStorage,next,personalKey);personalState=next;document.querySelector('#personal-message').textContent=isDemo?'已保存到独立 Demo 空间，不影响真实画像与操作。':'已保存在当前浏览器。';return true;}
+      catch(error){document.querySelector('#personal-message').textContent='保存失败，未标记成功：'+error.message;return false;}
+    }
+    function updateAction(item,patch){return commitPersonal(Personal.updateAction(personalState,item.id,patch));}
+    function recommendation(item){return Personal.evaluate(item,personalState.profile,Personal.actionFor(personalState,item.id));}
+
+    const cardsEl = document.querySelector("#cards");
+    const statusEl = document.querySelector("#status");
+    const searchEl = document.querySelector("#search");
+    const statsEl = document.querySelector("#stats");
+    const filtersEl = document.querySelector("#filters");
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function humanKey(key) {
+      return String(key).replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+    }
+
+    function normalizeValue(value) {
+      if (Array.isArray(value)) return value.join(", ");
+      if (value && typeof value === "object") return JSON.stringify(value, null, 2);
+      return value ?? "Unknown";
+    }
+
+    function countFor(key) {
+      return key === "all" ? allItems.length : allItems.filter((item) => item.category === key).length;
+    }
+
+    function itemText(item) {
+      return JSON.stringify(item).toLowerCase();
+    }
+
+    function getFilteredItems() {
+      const keyword = searchEl.value.trim().toLowerCase();
+      const view=document.querySelector('#view-mode').value;
+      const priority=document.querySelector('#priority-filter').value;
+      const subcategory=document.querySelector('#subcategory-filter').value;
+      const items=allItems.filter((item) => {
+        const filterOk = activeFilter === "all" || item.category === activeFilter;
+        const keywordOk = !keyword || itemText(item).includes(keyword);
+        const action=Personal.actionFor(personalState,item.id);
+        const viewOk=view==='all'||view==='recommended'&&!action.ignored||view==='favorites'&&action.favorite||view==='ignored'&&action.ignored||view==='applied'&&action.status==='applied';
+        return filterOk && keywordOk && viewOk && (!priority||recommendation(item).level===priority) && (!subcategory||item.subcategory===subcategory);
+      });
+      const sort=document.querySelector('#sort-mode').value;
+      return items.sort((a,b)=>sort==='deadline'?Personal.deadlineValue(a)-Personal.deadlineValue(b):sort==='latest'?(Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0):Personal.comparePriority(a,b,personalState.profile,personalState.actions));
+    }
+
+    function renderShellControls() {
+      statsEl.innerHTML = categories.map((category) => `
+        <button data-filter="${category.key}" class="stat-card glass rounded-2xl px-3 py-4 text-left transition hover:bg-white/10">
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <span class="category-icon">${Icons.icon(category.key)}</span>
+            <span class="count text-2xl font-semibold ${category.color}">${countFor(category.key)}</span>
+          </div>
+          <p class="text-xs leading-4 text-zinc-400">${category.label}</p>
+        </button>
+      `).join("");
+
+      filtersEl.innerHTML = categories.map((category) => `
+        <button data-filter="${category.key}" class="filter-pill chip shrink-0 rounded-full px-3.5 py-2 text-xs font-medium text-zinc-300 transition hover:bg-white/10">
+          <span class="category-icon">${Icons.icon(category.key)}</span>${category.label}
+        </button>
+      `).join("");
+
+      document.querySelectorAll("[data-filter]").forEach((button) => {
+        button.addEventListener("click", () => {
+          activeFilter = button.dataset.filter;
+          renderCards();
+        });
+      });
+    }
+
+    function updateActiveControls() {
+      document.querySelectorAll("[data-filter]").forEach((button) => {
+        const active = button.dataset.filter === activeFilter;
+        button.setAttribute('aria-pressed',String(active));
+        button.classList.toggle("ring-1", active);
+        button.classList.toggle("ring-white/30", active);
+        button.classList.toggle("bg-white/10", active);
+      });
+      categories.forEach((category) => {
+        document.querySelectorAll(`[data-filter="${category.key}"] .count`).forEach((node) => {
+          node.textContent = countFor(category.key);
+        });
+      });
+    }
+
+    function renderDetails(item, target) {
+      const details = item.details;
+      const fields = typeof details === "string" ? { "详细信息": details }
+        : Array.isArray(details) ? { "详细信息": details }
+        : details && typeof details === "object" ? details : {};
+      const entries = Object.entries(fields).filter(([, value]) => value !== undefined && value !== null && value !== "");
+      target.innerHTML = entries.length ? entries.map(([key, value]) => `
+        <section class="rounded-2xl border border-white/10 bg-black/20 p-4">
+          <p class="mb-1 text-xs uppercase tracking-[0.16em] text-zinc-500">${escapeHtml(humanKey(key))}</p>
+          <p data-original class="whitespace-pre-wrap text-sm leading-6 text-zinc-200">${escapeHtml(normalizeValue(value))}</p>
+        </section>
+      `).join("") : `<p class="text-sm text-zinc-400">No details / 暂无详细字段。</p>`;
+      const subcategories = { career: "Career / 职业发展", technical: "Technical Workshop / 技术实践", academic: "Academic / 学术交流", industry: "Industry / 行业分享", student_organisation: "Student Organisations / 学生组织", sports_wellness: "Sports & Wellness / 体育健康", culture_interests: "Culture & Interests / 文化兴趣", other: "Other / 其他" };
+      if (item.category === "event") {
+        target.insertAdjacentHTML("afterbegin", `<p class="text-sm text-zinc-300">类型：${escapeHtml(subcategories[item.subcategory] || "尚未细分")}</p>`);
+      }
+    }
+
+    function renderResearch(item, target) {
+      const source = item.source_email || {};
+      const applicationUrl = typeof item.application_url === "string" && /^https?:\/\//i.test(item.application_url) ? item.application_url : "";
+      target.innerHTML = `
+        <p class="mb-2 text-sm text-amber-100">${escapeHtml(item.verification_status || "旧卡片：尚未提取原文证据")}</p>
+        <p class="text-sm text-zinc-400">来源：${escapeHtml(source.subject || "未知邮件")} · ${escapeHtml(source.from || "")} · ${escapeHtml(source.date || "")}</p>
+        <p class="text-sm text-zinc-400">来源性质：${item.source_kind === "external_forward" ? "外部邮件转发（不代表学校官方招聘）" : "平台或官方性质尚未确认，请核对原邮件"}</p>
+        <p class="mt-2 text-sm text-amber-100">${escapeHtml(item.content_warning || "此卡片的正文完整性尚未确认，请核对原邮件及附件。")}</p>
+        <blockquote class="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-200">${escapeHtml(item.evidence_quote || "没有原文证据片段，请核对源邮件。")}</blockquote>
+        <p class="mt-3 text-sm text-zinc-300">截止日期依据：${escapeHtml(item.deadline_evidence || "原文未确认申请截止日期")}</p>
+        ${applicationUrl ? `<a class="mt-3 inline-block underline" href="${escapeHtml(applicationUrl)}" target="_blank" rel="noopener noreferrer">打开原文申请链接 ↗</a>` : ""}
+        ${item.source_excerpt ? `<details class="mt-3"><summary class="cursor-pointer text-sm text-zinc-400">查看邮件正文节选</summary><p class="mt-2 whitespace-pre-wrap text-sm leading-6">${escapeHtml(item.source_excerpt)}</p></details>` : ""}
+      `;
+    }
+
+    function renderChecklist(item, target) {
+      const list = Array.isArray(item.checklist) ? item.checklist.filter((todo) => typeof todo === "string" && todo.trim())
+        : typeof item.checklist === "string" && item.checklist.trim() ? [item.checklist] : [];
+      target.innerHTML = `
+        <p class="mb-3 text-xs uppercase tracking-[0.18em] text-zinc-500">Checklist / 准备清单</p>
+        ${list.length ? list.map((todo) => `
+          <label class="mb-2 flex items-start gap-3 last:mb-0">
+            <input type="checkbox" class="mt-1 h-4 w-4 rounded border-white/20 bg-black/40 accent-white" />
+            <span class="todo-text text-sm leading-6 text-zinc-200" data-original>${escapeHtml(todo)}</span>
+          </label>
+        `).join("") : `<p class="text-sm text-zinc-400">${item.checklist_status === "not_specified" ? "本次提取未发现明确准备事项，请核对原邮件。" : "这张卡片尚未提取准备清单，需要重新分析原邮件。"}</p>`}
+      `;
+      const checked=Personal.actionFor(personalState,item.id).checked||{};
+      target.querySelectorAll('input[type="checkbox"]').forEach((box,index)=>{
+        box.checked=Boolean(checked[list[index]]);
+        box.addEventListener('change',()=>{
+          const current=Personal.actionFor(personalState,item.id).checked||{};
+          if(!updateAction(item,{checked:{...current,[list[index]]:box.checked}}))box.checked=!box.checked;
+        });
+      });
+    }
+
+    function renderPersonal(item,node){
+      const result=recommendation(item);
+      const target=node.querySelector('.recommendation');
+      target.innerHTML=`<p class="font-medium">${escapeHtml(result.label)} · 资格：${escapeHtml(result.qualification)}</p><p class="mt-2 text-xs text-zinc-400">${escapeHtml(result.method)}。推荐等级与截止紧迫度独立；不保证录取。</p><ul class="mt-2 text-sm">${[...result.reasons,...result.gaps,...result.checks].map(reason=>`<li>• ${escapeHtml(reason)}</li>`).join('')}</ul>`;
+      const action=Personal.actionFor(personalState,item.id);
+      const controls=node.querySelector('.personal-actions');
+      for(const [label,patch] of [[action.favorite?'取消收藏':'收藏',{favorite:!action.favorite}],[action.ignored?'恢复显示':'忽略',{ignored:!action.ignored}]]){
+        const button=document.createElement('button');button.textContent=label;button.className='rounded border border-white/20 px-3 py-2 text-sm';
+        button.onclick=()=>{if(updateAction(item,patch))renderCards();};controls.append(button);
+      }
+      const status=document.createElement('select');status.setAttribute('aria-label','申请与参与状态');status.className='rounded bg-zinc-900 p-2 text-sm';
+      for(const [value,label] of [['none','未行动'],['preparing','准备中'],['applied','已申请 / 已报名'],['completed','已完成']]){const option=document.createElement('option');option.value=value;option.textContent=label;status.append(option);}
+      status.value=action.status||'none';status.onchange=()=>{if(updateAction(item,{status:status.value}))renderCards();else status.value=action.status||'none';};controls.append(status);
+      const feedback=document.createElement('select');feedback.setAttribute('aria-label','兴趣反馈');feedback.className='rounded bg-zinc-900 p-2 text-sm';
+      for(const [value,label] of [['','兴趣反馈'],['interested','感兴趣'],['not_interested','不感兴趣']]){const option=document.createElement('option');option.value=value;option.textContent=label;feedback.append(option);}
+      feedback.value=action.feedback||'';feedback.onchange=()=>{if(updateAction(item,{feedback:feedback.value}))renderCards();else feedback.value=action.feedback||'';};controls.append(feedback);
+    }
+
+    async function copyText(text, button) {
+      await navigator.clipboard.writeText(text || "");
+      const oldText = button.textContent;
+      button.textContent = "Copied";
+      setTimeout(() => { button.textContent = oldText; }, 1100);
+    }
+
+    function renderCards() {
+      updateActiveControls();
+      const items = getFilteredItems();
+      document.querySelector('#visible-count').textContent=`${items.length} 个机会`;
+      document.querySelectorAll('[data-view]').forEach(button=>{const active=button.dataset.view===document.querySelector('#view-mode').value;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
+      const counts={high:0,consider:0,pending:0,low:0};
+      for(const item of allItems)counts[recommendation(item).level]++;
+      const sortName=document.querySelector('#sort-mode').selectedOptions[0].textContent;
+      const summary=document.querySelector('#recommendation-summary');
+      summary.textContent=personalState.profile?`画像已生效 · 当前排序：${sortName} · 全部已收录机会：优先关注 ${counts.high} / 值得考虑 ${counts.consider} / 待评估 ${counts.pending} / 低相关 ${counts.low}。同等级按匹配依据多少、再按已知截止日期排序。`:'画像尚未保存：当前优先级为待评估；打开“我的背景与偏好”设置后生效。';
+      if(personalState.profile && allItems.length>1 && Object.values(counts).filter(count=>count>0).length===1)summary.textContent+=' 当前卡片等级相同，排序可能变化不明显；系统不会为制造差异强行分级。';
+      cardsEl.innerHTML = "";
+      statusEl.classList.toggle("hidden", items.length > 0);
+      if (items.length) {
+        statusEl.textContent = "";
+      } else if (dataLoadError) {
+        statusEl.textContent = dataLoadError;
+      } else if (allItems.length === 0) {
+        statusEl.textContent = "No data / 暂无数据：opportunities.json 为空。请先运行后端抓取真实邮件。";
+      } else {
+        statusEl.textContent = "No matching items / 没有匹配结果。请调整搜索或筛选条件。";
+      }
+
+      const template = document.querySelector("#card-template");
+      items.forEach((item) => {
+        const node = template.content.cloneNode(true);
+        const meta = categoryByKey[item.category] || { icon: "◎", label: "Opportunity / 机会", color: "text-zinc-200" };
+        const article = node.querySelector("article");
+        const head = node.querySelector(".card-head");
+        head.setAttribute('aria-expanded','false');
+        const content = node.querySelector(".accordion-content");
+        const chevron = node.querySelector(".chevron svg");
+        const match=recommendation(item);
+        const badge=node.querySelector('.priority-badge');badge.dataset.level=match.level;badge.textContent=match.label;
+        node.querySelector('.recommendation-teaser').textContent=`推荐依据：${match.reasons[0]||'待评估'}${match.gaps.length?' · '+match.gaps[0]:match.qualification==='待确认'?' · 资格待确认':''}`;
+
+        node.querySelector(".category").innerHTML = `${Icons.icon(item.category)}<span>${escapeHtml(meta.label)}</span>`;
+        node.querySelector(".category").classList.add(meta.color);
+        node.querySelector(".deadline").textContent = `Deadline / 截止：${item.deadline || "Unknown"}`;
+        node.querySelector(".title").textContent = item.title || "Untitled";
+        node.querySelector(".organization").textContent = item.organization || "Unknown";
+        node.querySelector(".summary").textContent = item.summary || "";
+        node.querySelector(".highlight").textContent = item.key_highlight || item.summary || "查看详情";
+        renderDetails(item, node.querySelector(".details"));
+        renderResearch(item, node.querySelector(".research"));
+        renderChecklist(item, node.querySelector(".checklist"));
+        renderPersonal(item,node);
+        const apply=node.querySelector('.quick-apply');
+        if(typeof item.application_url==='string'&&/^https?:\/\//i.test(item.application_url)){apply.href=item.application_url;apply.classList.remove('hidden');}
+
+        head.addEventListener("click", () => {
+          const isOpen = content.classList.toggle("open");
+          head.setAttribute('aria-expanded',String(isOpen));
+          chevron.style.transform = isOpen ? "rotate(180deg)" : "rotate(0deg)";
+          article.classList.toggle("ring-1", isOpen);
+          article.classList.toggle("ring-white/15", isOpen);
+        });
+
+        node.querySelector(".copy-btn").addEventListener("click", (event) => {
+          event.stopPropagation();
+          const context=personalState.profile?`个人背景（用户填写，非邮件事实）：${JSON.stringify(personalState.profile)}\n基础规则判断（待核对）：${JSON.stringify(recommendation(item))}\n\n`:'';
+          copyText(context+(item.ai_prompt_context || JSON.stringify(item, null, 2)), event.currentTarget);
+        });
+
+        node.querySelector(".copy-summary-btn").addEventListener("click", (event) => {
+          event.stopPropagation();
+          const label = (categoryByKey[item.category] || { label: "Opportunity / 机会" }).label;
+          const summary = `【${label}】${item.title || "Untitled"}\nDeadline / 截止：${item.deadline || "Unknown"}\n重点：${item.key_highlight || item.summary || ""}`;
+          copyText(summary, event.currentTarget);
+        });
+
+        cardsEl.appendChild(node);
+      });
+    }
+
+    async function loadData() {
+      try {
+        const response = await fetch(`${isDemo?'demo.json':'opportunities.json'}?ts=${Date.now()}`, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        allItems = Array.isArray(data) ? data : [];
+        dataLoadError = "";
+        statusEl.classList.add("hidden");
+      } catch (error) {
+        allItems = [];
+        dataLoadError = "No data / 暂无数据：无法读取 opportunities.json。请确认它与 index.html 位于同一目录，并通过 python app.py 启动服务。";
+        statusEl.classList.remove("hidden");
+      }
+      document.querySelector("#last-sync").textContent = new Date().toLocaleString("zh-Hans", {
+        hour12: false,
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      renderShellControls();
+      renderCards();
+      loadSyncStatus();
+    }
+
+    async function loadSyncStatus(){
+      const target=document.querySelector('#mail-sync-summary');
+      if(isDemo){target.textContent='Demo 模式：虚构样例，不连接邮箱、不调用 AI。正式模式会在这里显示实际同步结果。';return;}
+      try{
+        const response=await fetch('/sync_status.json',{cache:'no-store'});
+        if(response.status===404){target.textContent='尚无同步统计。刷新列表不会读取邮箱；需通过 once 或 watch 运行同步。';return;}
+        if(!response.ok)throw Error('读取同步状态失败');
+        const stats=await response.json();
+        const names={reading:'正在读取邮箱',processing:'正在处理',completed:'本轮完成',completed_with_issues:'本轮结束，存在待处理问题',failed:'同步失败'};
+        const date=stats.finished_at||stats.started_at;
+        target.textContent=`邮箱同步：${names[stats.status]||'状态未知'} · ${date?new Date(date).toLocaleString('zh-CN'):''} · 尝试 ${stats.attempted||0} 封 · 新增 ${stats.new_opportunities||0} 张 · 无机会 ${stats.no_opportunity||0} · 重复 ${stats.duplicate||0} · 暂缓 ${stats.deferred||0} · 待复核 ${stats.needs_review||0} · 失败 ${stats.failed||0}。本地同步需要程序持续运行。`;
+      }catch(error){target.textContent='无法读取同步状态，请查看终端；不能据此判断同步成功。';}
+    }
+    async function loadRuntime(){
+      const target=document.querySelector('#runtime-status');
+      if(isDemo){target.textContent='Demo 不连接邮箱，同步按钮不可用。';return;}
+      try{const response=await fetch('/api/runtime',{cache:'no-store'});if(!response.ok)throw Error();const state=await response.json();target.textContent=(state.running?(state.stopping?'停止请求已收到，等待当前批次结束。':state.mode==='watch'?'定时检查已开启。':'正在同步一轮。'):'当前没有网页启动的后台同步。')+(state.last_error?' '+state.last_error:'');}
+      catch(error){target.textContent='同步控制状态无法读取；如刚更新过程序，请重启服务。';}
+    }
+    document.querySelectorAll('[data-sync]').forEach(button=>{
+      button.disabled=isDemo;
+      button.onclick=async()=>{button.disabled=true;const message=document.querySelector('#sync-action-message');try{const response=await fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:button.dataset.sync})});const data=await response.json();if(!response.ok)throw Error(data.error||'操作失败');message.textContent=data.message;await loadRuntime();await loadSyncStatus();}catch(error){message.textContent=error.message;}finally{button.disabled=isDemo;}};
+    });
+
+    searchEl.addEventListener("input", renderCards);
+    const form=document.querySelector('#profile-form');
+    const goalOptions={internship:'Internship / 实习',research:'Research / 科研',project:'Projects / 项目',study:'Study / 升学交流',networking:'Networking / 人脉',organisation:'组织经历',wellness:'运动健康',explore:'兴趣探索'};
+    const interestOptions={technical:'技术与硬件 AI',academic:'学术研究',career:'职业发展',student_organisation:'学生组织',sports_wellness:'体育健康',culture_interests:'文化兴趣',networking:'人脉与导师交流'};
+    function options(target,name,values){for(const [value,label]of Object.entries(values)){const container=document.createElement('label');const input=document.createElement('input');input.type='checkbox';input.name=name;input.value=value;container.append(input,document.createTextNode(' '+label));document.querySelector(target).append(container);}}
+    options('#goal-options','goals',goalOptions);options('#interest-options','interests',interestOptions);
+    function fillProfile(profile){
+      for(const key of ['major','year','gpa','availability','location','budget','exploration'])form.elements.namedItem(key).value=profile?.[key]??(key==='exploration'?'focused':'');
+      form.elements.namedItem('skills').value=(profile?.skills||[]).join(', ');
+      for(const key of ['goals','interests'])form.querySelectorAll(`input[name="${key}"]`).forEach(box=>box.checked=(profile?.[key]||[]).includes(box.value));
+    }
+    function showProfile(){const profile=personalState.profile;document.querySelector('#profile-summary').textContent=profile?`${profile.major||'专业未填'} · ${profile.year?'Year '+profile.year:'年级未填'} · ${(profile.skills||[]).join(', ')||'技能未填'}。推荐在本地更新；资格以原文为准。`:'尚未设置画像：你可以先浏览全部机会，推荐会标为待评估。';}
+    fillProfile(personalState.profile);showProfile();document.querySelector('#profile-panel').open=!personalState.profile;
+    form.onsubmit=event=>{
+      event.preventDefault();const data=new FormData(form);
+      const profile={};for(const key of ['major','year','gpa','availability','location','budget','exploration'])profile[key]=String(data.get(key)||'').trim();
+      profile.skills=String(data.get('skills')||'').split(/[,，]/).map(value=>value.trim()).filter(Boolean);
+      profile.goals=data.getAll('goals');profile.interests=data.getAll('interests');
+      if(commitPersonal({...personalState,profile})){showProfile();renderCards();document.querySelector('#profile-panel').open=false;}
+    };
+    document.querySelector('#prefill-profile').onclick=()=>{fillProfile({major:'Electronic and Electrical Engineering',year:'2',skills:['C++','Python'],goals:['internship','project'],interests:[],exploration:'open'});document.querySelector('#personal-message').textContent='已填入已知背景，兴趣未替你选择；点击保存后生效。';};
+    document.querySelector('#skip-profile').onclick=()=>{fillProfile(personalState.profile);document.querySelector('#profile-panel').open=false;};
+    document.querySelector('#edit-profile').onclick=()=>{document.querySelector('#profile-panel').open=true;document.querySelector('#profile-panel').scrollIntoView({behavior:'smooth',block:'start'});};
+    document.querySelectorAll('[data-view]').forEach(button=>button.onclick=()=>{document.querySelector('#view-mode').value=button.dataset.view;renderCards();});
+    for(const id of ['view-mode','priority-filter','subcategory-filter','sort-mode'])document.querySelector('#'+id).addEventListener('change',renderCards);
+    document.querySelector("#refresh").addEventListener("click", loadData);
+    setInterval(loadSyncStatus,30000);
+    setInterval(loadRuntime,10000);
+    loadRuntime();
+    loadData();
+  </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+config.local.json
+.mailphor_state.json
+opportunities.json
+mail_audit.json
+sync_status.json
+.mailphor_retry_queue.json
+*.log
+
+# The existing config may contain credentials. Keep it local until secrets are rotated.
+config.json
+.mailphor-repair-*
+.mailphor-write-*.tmp

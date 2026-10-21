@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MailPhor · 邮件处理记录</title>
+<link rel="stylesheet" href="/styles.css">
+<body class="audit-page"><aside class="sidebar"><a class="brand" href="/index.html"><span class="brand-mark">m<span>↗</span></span>MailPhor<span class="brand-dot">.</span></a><p class="sidebar-caption">TRUST THROUGH TRANSPARENCY</p><nav><a class="nav-item" href="/index.html">← 机会工作台</a><a class="nav-item active" href="/mail-audit.html">≡ 邮件处理记录</a></nav><div class="sidebar-bottom"><p>Every email.<br>A clear answer.</p></div></aside><main>
+<div class="surface-toolbar"><a href="/index.html">← 返回机会列表</a><label class="locale-control"><span data-icon="globe"></span><select id="language-switch" aria-label="Language / 语言"><option value="zh">中文</option><option value="en">English</option></select></label></div><h1>邮件处理记录</h1>
+<p>用于检查漏选。仅包含此功能上线后实际交给 AI 处理的邮件；历史处理、来源规则排除、Outlook 未转发的邮件不在此列表。正文是节选，请对照原邮箱。</p>
+<label>处理状态 <select id="filter"><option value="">全部</option><option value="no_opportunity">未提取机会 · 重点复核</option><option value="extracted">已提取</option><option value="duplicate">重复</option><option value="deferred">暂缓</option><option value="failed">失败</option></select></label>
+<button id="refresh">刷新记录（不调用 AI）</button>
+<button id="preview">查看诊断展示示例（模拟，不调用 AI）</button>
+<p id="preview-note" role="status"></p>
+<p id="status" role="status"></p><section id="records"></section>
+<p id="api-message" role="status"></p>
+<script src="/icons.js"></script><script src="/i18n.js"></script>
+<script>
+if(typeof MailPhorIcons!=='undefined')MailPhorIcons.boot();
+let records=[];
+let preview=false;
+const labels={no_opportunity:'未提取机会 · 需要复核',extracted:'已提取',duplicate:'重复',deferred:'暂缓，不代表无关',failed:'失败，不代表无关'};
+labels.needs_review='疑似漏选 · 待人工复核';
+const reviewOption=document.createElement('option');reviewOption.value='needs_review';reviewOption.textContent='疑似漏选';document.querySelector('#filter').append(reviewOption);
+function element(tag,text){const node=document.createElement(tag);node.textContent=text;return node;}
+function render(){
+  const root=document.querySelector('#records');root.replaceChildren();
+  const filter=document.querySelector('#filter').value;
+  for(const record of records.filter(item=>!filter||item.status===filter)){
+    const article=element('article','');
+    article.append(element('h2',record.subject||'无主题'),element('p',labels[record.status]||record.status),element('small',`${record.from||''} · ${record.date||''}`),element('p','判断理由：'+(record.reason||'未记录理由')));
+    for(const opportunity of record.opportunities||[])article.append(element('p','提取机会：'+opportunity.title));
+    const methods={verified_template:'明确报名模板（未调用 AI）',ai:'AI 分析',unknown:'历史记录未标注'};
+    article.append(element('p','处理方式：'+(methods[record.analysis_method]||methods.unknown)));
+    const diagnostics=element('details','');diagnostics.append(element('summary','查看 AI 请求诊断'));
+    if(!Array.isArray(record.ai_diagnostics)||!record.ai_diagnostics.length){
+      diagnostics.append(element('p',record.analysis_method==='verified_template'?'本次使用模板规则，没有 AI 请求。':'此记录未保存诊断信息，不能追溯具体模型失败原因。'));
+    } else {
+      for(const attempt of record.ai_diagnostics){
+        diagnostics.append(element('pre',`第 ${attempt.attempt} 次 · ${attempt.status}\n请求模型：${attempt.requested_model||'未知'}\n实际模型：${attempt.actual_model||'服务未提供'}\n结束原因：${attempt.finish_reason||'未收到'}\n耗时：${attempt.elapsed_seconds??'未知'} 秒\n回复长度：${attempt.content_chars??'未知'} 字符\n错误类型：${attempt.error_kind||'无'}\n说明：${attempt.failure||'无额外说明'}`));
+      }
+    }
+    article.append(diagnostics);
+    if(record.message_id){
+      const retry=element('button','加入下轮重新分析');retry.style.cssText='margin-top:12px;padding:8px 12px;border-radius:8px;font-size:12px';
+      retry.onclick=async()=>{retry.disabled=true;const message=document.querySelector('#api-message');try{const response=await fetch('/api/reanalyse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message_id:record.message_id})});const data=await response.json();if(!response.ok)throw Error(data.error||'操作失败');message.textContent=data.message;retry.textContent='已加入队列，等待同步';}catch(error){message.textContent=error.message;retry.disabled=false;}};
+      article.append(retry);
+    }
+    const details=element('details','');details.append(element('summary','核对读取到的正文'),element('p',record.body_note||''),element('pre',record.body_excerpt||'未读取到正文，请核对原邮件。'));article.append(details);root.append(article);
+  }
+  document.querySelector('#status').textContent=`${preview?'模拟示例，非真实邮件 · ':''}共 ${records.length} 条记录，当前显示 ${root.childElementCount} 条。`;
+}
+async function load(){try{const response=await fetch('/mail_audit.json',{cache:'no-store'});if(response.status===404){records=[];render();document.querySelector('#status').textContent='尚无记录。下一轮真实邮件处理后生成；不会自动回填历史邮件。';return;}if(!response.ok)throw Error('读取失败');records=await response.json();if(!Array.isArray(records))throw Error('记录格式错误');render();}catch(error){document.querySelector('#status').textContent=error.message;}}
+document.querySelector('#filter').onchange=render;
+document.querySelector('#refresh').onclick=()=>{preview=false;document.querySelector('#preview-note').textContent='';return load();};
+document.querySelector('#preview').onclick=()=>{
+  preview=true;document.querySelector('#filter').value='';
+  document.querySelector('#preview-note').textContent='当前仅展示模拟诊断，不代表真实 AI 验收通过；未调用 AI、未写入或修改历史记录。点击“刷新记录”返回真实数据。';
+  const diagnostic={attempt:1,requested_model:'demo/router',actual_model:'demo/model',elapsed_seconds:12,content_chars:40};
+  records=[
+    {subject:'[模拟] 旧记录无诊断',status:'failed',reason:'展示历史记录兼容，不追溯未知原因。'},
+    {subject:'[模拟] 模板提取',status:'extracted',analysis_method:'verified_template',reason:'未调用 AI。'},
+    {subject:'[模拟] AI 正常返回',status:'extracted',analysis_method:'ai',ai_diagnostics:[{...diagnostic,status:'success',finish_reason:'stop'}]},
+    {subject:'[模拟] 回复截断',status:'deferred',analysis_method:'ai',ai_diagnostics:[{...diagnostic,status:'invalid_response',finish_reason:'length',error_kind:'AIResponseError',failure:'回复达到输出上限而截断'}]},
+    {subject:'[模拟] 网络超时',status:'deferred',analysis_method:'ai',ai_diagnostics:[{attempt:1,requested_model:'demo/router',status:'request_failed',error_kind:'TimeoutError',elapsed_seconds:75}]}
+  ];render();
+};if(typeof location!=='undefined'&&new URLSearchParams(location.search).get('demo')==='1')document.querySelector('#preview').click();else load();
+</script></main></body></html>
