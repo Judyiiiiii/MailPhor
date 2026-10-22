@@ -25,7 +25,7 @@ The existing Python localhost server is intentionally not exposed publicly. It u
 
 ## Delivery stages
 
-1. Local provider abstraction and setup documentation.
+1. Local provider abstraction and setup documentation (implemented in the local MVP through `AI_PROVIDER`, `AI_BASE_URL` and `AI_MODEL`; cloud and local OpenAI-compatible endpoints are selectable per user).
 2. Hosted demo with synthetic data and no credentials.
 3. Private hosted account with encrypted settings and one-user IMAP sync.
 4. User-selectable mail/AI provider settings, audit records and retry controls.

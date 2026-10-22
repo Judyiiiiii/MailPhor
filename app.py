@@ -1,5 +1,5 @@
 """
-MailPhor - IMAP + DeepSeek 全自动校园机会雷达
+MailPhor - IMAP + pluggable AI 校园机会雷达
 
 重构要点：
 1. 所有邮件直接送入 DeepSeek 判断，不做任何本地关键词预过滤。
@@ -53,22 +53,31 @@ DEEPSEEK_BASE_URL = "https://api.deepseek.com/"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/"
 
 
-def get_ai_chat_endpoint(api_key: str) -> str:
-    """Choose an OpenAI-compatible endpoint from the configured key.
+def get_ai_chat_endpoint(api_key: str, base_url: str = "") -> str:
+    """Return the OpenAI-compatible chat endpoint.
 
-    OpenRouter keys start with ``sk-or-``. DeepSeek keys keep using the
-    official DeepSeek endpoint, so existing configurations continue to work.
+    An explicit AI_BASE_URL wins, which supports local Ollama/LM Studio and
+    private gateways. The key-prefix fallback keeps old config files working.
     """
-    base_url = OPENROUTER_BASE_URL if api_key.strip().startswith("sk-or-") else DEEPSEEK_BASE_URL
+    base_url = base_url.strip() or (OPENROUTER_BASE_URL if api_key.strip().startswith("sk-or-") else DEEPSEEK_BASE_URL)
     return f"{base_url.rstrip('/')}/chat/completions"
 
 
 def get_ai_model(settings: Settings) -> str:
-    """Use OpenRouter's free model router when an OpenRouter key is supplied."""
-    if settings.deepseek_api_key.strip().startswith("sk-or-"):
+    """Use the user's explicit model; infer the free router only for legacy config."""
+    if not settings.ai_model and settings.deepseek_api_key.strip().startswith("sk-or-"):
         if settings.deepseek_model in {"", "deepseek-chat", "deepseek-flash", "glm-4-flash"}:
             return "openrouter/free"
-    return settings.deepseek_model
+    return settings.ai_model or settings.deepseek_model
+
+
+def get_ai_provider_label(settings: Settings) -> str:
+    """Use an explicit provider label in status output without exposing secrets."""
+    if settings.ai_provider and settings.ai_provider.casefold() != "auto":
+        return settings.ai_provider
+    if settings.ai_base_url:
+        return settings.ai_base_url.rstrip("/").split("/")[-1] or "OpenAI-compatible"
+    return "OpenRouter" if settings.deepseek_api_key.startswith("sk-or-") else "DeepSeek"
 
 
 SYSTEM_PROMPT = """
@@ -182,6 +191,9 @@ class Settings:
     poll_seconds: int = 300
     deepseek_api_key: str = ""
     deepseek_model: str = "deepseek-chat"
+    ai_provider: str = "auto"
+    ai_base_url: str = ""
+    ai_model: str = ""
     dashboard_url: str = "http://localhost:8000/index.html"
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
@@ -261,8 +273,11 @@ def load_settings() -> Settings:
         imap_lookback_days=config_int(config, "IMAP_LOOKBACK_DAYS", 7),
         imap_mark_as_read=config_bool(config, "IMAP_MARK_AS_READ", False),
         poll_seconds=config_int(config, "POLL_SECONDS", 300),
-        deepseek_api_key=setting_str(config, "DEEPSEEK_API_KEY"),
+        deepseek_api_key=setting_str(config, "AI_API_KEY") or setting_str(config, "DEEPSEEK_API_KEY"),
         deepseek_model=setting_str(config, "DEEPSEEK_MODEL", "deepseek-flash"),
+        ai_provider=setting_str(config, "AI_PROVIDER", "auto"),
+        ai_base_url=setting_str(config, "AI_BASE_URL"),
+        ai_model=setting_str(config, "AI_MODEL"),
         dashboard_url=setting_str(config, "DASHBOARD_URL", "http://localhost:8000/index.html"),
         telegram_bot_token=setting_str(config, "TELEGRAM_BOT_TOKEN"),
         telegram_chat_id=setting_str(config, "TELEGRAM_CHAT_ID"),
@@ -318,7 +333,7 @@ def test_deepseek_api(settings: Settings) -> None:
         raise RuntimeError("AI 测试回复不是完整 JSON，本次测试未通过，未读取邮箱。") from exc
     if not isinstance(parsed, dict) or parsed.get("ok") is not True:
         raise RuntimeError("AI 测试回复缺少 ok=true，本次测试未通过。")
-    provider = "OpenRouter" if settings.deepseek_api_key.startswith("sk-or-") else "DeepSeek"
+    provider = get_ai_provider_label(settings)
     print(f"{provider} API 测试通过：返回了合法 JSON。")
 
 
@@ -687,7 +702,8 @@ def generate_deepseek_once(settings: Settings, payload: dict[str, Any], total_ti
     try:
         context = multiprocessing.get_context("spawn")
         inbox = context.Queue()
-        process = context.Process(target=_ai_request_process, args=(get_ai_chat_endpoint(settings.deepseek_api_key), settings.deepseek_api_key, payload, inbox), daemon=True)
+        endpoint = get_ai_chat_endpoint(settings.deepseek_api_key, settings.ai_base_url)
+        process = context.Process(target=_ai_request_process, args=(endpoint, settings.deepseek_api_key, payload, inbox), daemon=True)
         process.start()
         while True:
             remaining = total_timeout - (time.monotonic() - started)
@@ -703,7 +719,7 @@ def generate_deepseek_once(settings: Settings, payload: dict[str, Any], total_ti
         if outcome[0] == "result":
             return outcome[1]
         if outcome[0] == "http_error":
-            raise HTTPError(get_ai_chat_endpoint(settings.deepseek_api_key), outcome[1], "AI API request failed", {}, io.BytesIO(outcome[2].encode("utf-8")))
+            raise HTTPError(endpoint, outcome[1], "AI API request failed", {}, io.BytesIO(outcome[2].encode("utf-8")))
         if outcome[0] == "invalid_api_json":
             raise json.JSONDecodeError("API response is not valid JSON", "", 0)
         raise URLError("AI 网络请求失败：" + outcome[1])

@@ -43,6 +43,19 @@ class ClassificationValidationTests(unittest.TestCase):
             app.test_deepseek_api(self.settings)
         mailbox.assert_not_called()
 
+    def test_explicit_local_provider_endpoint_and_model_override_legacy_key_guess(self):
+        settings = app.Settings(
+            imap_email="",
+            imap_password="",
+            deepseek_api_key="ollama",
+            deepseek_model="deepseek-chat",
+            ai_provider="ollama",
+            ai_base_url="http://127.0.0.1:11434/v1",
+            ai_model="qwen2.5:7b",
+        )
+        self.assertEqual(app.get_ai_chat_endpoint(settings.deepseek_api_key, settings.ai_base_url), "http://127.0.0.1:11434/v1/chat/completions")
+        self.assertEqual(app.get_ai_model(settings), "qwen2.5:7b")
+
     def test_serve_mode_does_not_load_credentials_or_run_ai_or_mail(self):
         with patch("sys.argv", ["app.py", "--mode", "serve"]), \
              patch.object(app, "start_web_server", return_value=None), \
