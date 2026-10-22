@@ -24,7 +24,7 @@ async function main() {
   const original = [{subject:'Saved mail', status:'deferred', reason:'Old failure'}];
   let fetches = 0;
   const context = vm.createContext({document, fetch: async url => {
-    assert.equal(url, '/mail_audit.json');
+    assert.equal(url, 'mail_audit.json');
     fetches++;
     return {status:200,ok:true,json:async()=>JSON.parse(JSON.stringify(original))};
   }});

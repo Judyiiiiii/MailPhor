@@ -4,12 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MailPhor</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body class="min-h-screen text-white antialiased">
   <a class="skip-link" href="#cards">跳到机会列表</a>
   <aside class="sidebar">
-    <a class="brand" href="/index.html"><span class="brand-mark">m<span>↗</span></span>MailPhor<span class="brand-dot">.</span></a>
+    <a class="brand" href="index.html"><span class="brand-mark">m<span>↗</span></span>MailPhor<span class="brand-dot">.</span></a>
     <p class="sidebar-caption">YOUR OPPORTUNITY SPACE</p>
     <nav aria-label="机会导航">
       <button data-view="recommended" class="nav-item active"><span>✦</span> 为你推荐 <small>For you</small></button>
@@ -18,11 +18,11 @@
       <button data-view="applied" class="nav-item"><span>↗</span> 已申请 / 报名</button>
       <button data-view="ignored" class="nav-item"><span>−</span> 已忽略</button>
     </nav>
-    <div class="sidebar-bottom"><button id="edit-profile" class="nav-item"><span>⚙</span> 背景与偏好</button><a id="audit-link" class="nav-item" href="/mail-audit.html"><span>≡</span> 邮件处理记录</a><a class="nav-item" href="/index.html?demo=1"><span>◈</span> 体验 Demo</a><p>个人机会工作台</p><small>保存在本机 · Local-first</small></div>
+    <div class="sidebar-bottom"><button id="edit-profile" class="nav-item"><span>⚙</span> 背景与偏好</button><a id="audit-link" class="nav-item" href="mail-audit.html"><span>≡</span> 邮件处理记录</a><a class="nav-item" href="index.html?demo=1"><span>◈</span> 体验 Demo</a><p>个人机会工作台</p><small>保存在本机 · Local-first</small></div>
   </aside>
   <main class="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
     <div class="surface-toolbar"><span>MailPhor <span class="toolbar-separator">/</span> <span>个人机会工作台</span></span><label class="locale-control"><span data-icon="globe"></span><select id="language-switch" aria-label="Language / 语言"><option value="zh">中文</option><option value="en">English</option></select></label></div>
-    <div id="demo-banner" class="demo-banner hidden">DEMO · 这里展示虚构机会，画像和操作独立保存，不混入你的真实数据。<a href="/index.html">返回个人工作台 →</a></div>
+    <div id="demo-banner" class="demo-banner hidden">DEMO · 这里展示虚构机会，画像和操作独立保存，不混入你的真实数据。<a href="index.html">返回个人工作台 →</a></div>
     <header class="workspace-header mb-6 flex items-end justify-between gap-4">
       <div><p class="eyebrow">MAILPHOR · YOUR OPPORTUNITIES</p><h1 id="page-title">发现值得投入的机会<span>↗</span></h1><p class="header-subtitle">根据你的背景整理、比较与跟进，不错过重要的下一步。</p></div>
       <section class="read-time px-4 py-3 text-right">
@@ -128,9 +128,9 @@
     </article>
   </template>
 
-  <script src="/icons.js"></script>
-  <script src="/i18n.js"></script>
-  <script src="/personalization.js"></script>
+    <script src="icons.js"></script>
+  <script src="i18n.js"></script>
+  <script src="personalization.js"></script>
   <script>
     const categories = [
       { key: "all", icon: "◎", label: "All / 全部", shortLabel: "All / 全部", color: "text-zinc-100" },
@@ -156,7 +156,7 @@
     const isDemo=new URLSearchParams(location.search).get('demo')==='1';
     const personalKey=Personal.KEY+(isDemo?'.demo':'');
     document.querySelector('#demo-banner').classList.toggle('hidden',!isDemo);
-    if(isDemo){document.querySelector('#audit-link').href='/mail-audit.html?demo=1';document.title='MailPhor · Demo';}
+    if(isDemo){document.querySelector('#audit-link').href='mail-audit.html?demo=1';document.title='MailPhor · Demo';}
     let personalState;
     let personalStorageReady = true;
     try { personalState=Personal.read(localStorage,personalKey); }
